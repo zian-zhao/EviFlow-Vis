@@ -1,0 +1,1332 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Layout export</title>
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+    <style>
+        * { box-sizing: border-box; }
+        body {
+            margin: 0;
+            background: #e7e5e2;
+            color: #1a1a1a;
+            font-family: Cambria, 'Palatino Linotype', Georgia, 'Times New Roman', serif;
+            font-size: 11pt;
+            line-height: 1.65;
+        }
+        .toolbar {
+            position: sticky;
+            top: 0;
+            z-index: 20;
+            background: #fff;
+            border-bottom: 1px solid #e1dfdd;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            font-size: 12px;
+        }
+        .toolbar-inner {
+            max-width: 58rem;
+            margin: 0 auto;
+            padding: 10px 18px 11px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        .toolbar-main {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px 14px;
+        }
+        .toolbar-actions {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 6px;
+        }
+        .toolbar-group {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding-right: 10px;
+            margin-right: 2px;
+            border-right: 1px solid #e5e7eb;
+        }
+        .toolbar-group:last-child {
+            border-right: none;
+            padding-right: 0;
+            margin-right: 0;
+        }
+        .toolbar-group-label {
+            font-size: 10px;
+            font-weight: 700;
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+            color: #6b7280;
+            margin-right: 2px;
+            user-select: none;
+        }
+        .toolbar .brand {
+            font-weight: 600;
+            font-size: 11px;
+            color: #323130;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+        }
+        .toolbar button, .toolbar a.btn-link {
+            padding: 6px 11px;
+            border: 1px solid #c8c6c4;
+            border-radius: 4px;
+            background: #faf9f8;
+            cursor: pointer;
+            font-size: 12px;
+            font-family: inherit;
+            text-decoration: none;
+            color: #323130;
+        }
+        .toolbar button:hover, .toolbar a.btn-link:hover {
+            background: #f3f2f1;
+            border-color: #a19f9d;
+        }
+        .toolbar button.primary {
+            background: #0078d4;
+            border-color: #0078d4;
+            color: #fff;
+            font-weight: 600;
+        }
+        .toolbar button.primary:hover {
+            background: #106ebe;
+            border-color: #106ebe;
+        }
+        .toolbar-hint {
+            margin: 0;
+            font-size: 11px;
+            color: #8a8886;
+            line-height: 1.45;
+            max-width: 52rem;
+        }
+        .page-margin { padding: 22px 16px 40px; min-height: calc(100vh - 56px); }
+        .paper {
+            max-width: 21cm;
+            margin: 0 auto;
+            background: #fff;
+            min-height: 29.7cm;
+            padding: 2cm 2.2cm 2.2cm;
+            box-shadow: 0 2px 12px rgba(0, 0, 0, 0.07);
+            border-radius: 1px;
+        }
+        .doc-title {
+            font-size: 15pt;
+            font-weight: 600;
+            margin: 0 0 0.25em;
+            color: #201f1e;
+            letter-spacing: -0.02em;
+        }
+        .doc-note {
+            font-size: 11px;
+            color: #8a8886;
+            margin: 0 0 1.1em;
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            line-height: 1.4;
+        }
+        /* One continuous “Word” body: text + figures in reading order */
+        .merged-document {
+            text-align: justify;
+            word-break: break-word;
+            color: #201f1e;
+        }
+        .merged-document .plain,
+        .merged-document .excerpt {
+            white-space: pre-wrap;
+        }
+        .merged-document .plain {
+            display: inline;
+        }
+        .merged-document .excerpt {
+            background: transparent;
+            border-left: none;
+            padding-left: 0;
+            margin-left: 0;
+        }
+        .merged-document .orphan-note {
+            display: block;
+            font-size: 9.5pt;
+            color: #605e5c;
+            font-style: italic;
+            margin: 1em 0 0.25em;
+            font-family: Calibri, 'Segoe UI', Arial, sans-serif;
+        }
+        .figure-wrap {
+            display: block;
+            margin: 0.75em 0 1em;
+            text-align: center;
+        }
+        .inline-chart {
+            width: 100%;
+            max-width: 16cm;
+            height: 260px;
+            margin: 0 auto;
+        }
+        .figure-wrap figcaption {
+            font-size: 9.5pt;
+            font-style: italic;
+            color: #605e5c;
+            margin-top: 0.35em;
+            text-align: center;
+            font-family: Cambria, Georgia, serif;
+        }
+        #err {
+            max-width: 42rem;
+            margin: 2rem auto;
+            padding: 1rem 1.25rem;
+            background: #fff;
+            border: 1px solid #e1dfdd;
+            border-radius: 4px;
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            font-size: 13px;
+            color: #605e5c;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+        }
+        @media print {
+            body { background: #fff; }
+            .toolbar { display: none !important; }
+            .page-margin { padding: 0; }
+            .paper { box-shadow: none; max-width: none; padding: 0; }
+            .figure-wrap { break-inside: avoid; page-break-inside: avoid; }
+            .layout-rail { display: none !important; }
+            /* Omit chrome heading / note from print PDF */
+            .doc-title,
+            .doc-note { display: none !important; }
+            .interline-drop { display: none !important; }
+        }
+        /* Manual layout: one row per movable group; text flows inline inside a text row */
+        .merged-document.layout-rows {
+            display: flex;
+            flex-direction: column;
+            align-items: stretch;
+            gap: 0;
+        }
+        .layout-row {
+            display: flex;
+            flex-direction: row;
+            align-items: flex-start;
+            gap: 8px;
+            position: relative;
+        }
+        .layout-rail {
+            flex: 0 0 auto;
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+            padding-top: 2px;
+            font-family: Calibri, 'Segoe UI', Arial, sans-serif;
+        }
+        .layout-rail button {
+            width: 26px;
+            min-height: 22px;
+            padding: 0;
+            font-size: 12px;
+            line-height: 1;
+            border: 1px solid #c8c6c4;
+            border-radius: 2px;
+            background: #faf9f8;
+            cursor: pointer;
+            color: #323130;
+        }
+        .layout-rail button:hover { background: #edebe9; }
+        .layout-rail button.danger { color: #a4262c; border-color: #d4a4a7; }
+        .layout-rail .rail-label {
+            font-size: 8pt;
+            color: #8a8886;
+            max-width: 52px;
+            line-height: 1.15;
+            margin-bottom: 2px;
+        }
+        .layout-body {
+            flex: 1 1 auto;
+            min-width: 0;
+            text-align: justify;
+            word-break: break-word;
+        }
+        .layout-body.text-flow .plain,
+        .layout-body.text-flow .excerpt {
+            white-space: pre-wrap;
+            display: inline;
+        }
+        .merged-document.layout-chrome-hidden .layout-rail {
+            display: none !important;
+        }
+        .merged-document.layout-chrome-hidden .layout-row {
+            gap: 0;
+        }
+        .drag-handle {
+            cursor: grab;
+            user-select: none;
+            font-size: 14px;
+            line-height: 1;
+            letter-spacing: -2px;
+            color: #605e5c;
+            padding: 2px 0 4px;
+            text-align: center;
+        }
+        .drag-handle:active { cursor: grabbing; }
+        .layout-row.drag-over {
+            outline: 2px dashed #0078d4;
+            outline-offset: 2px;
+            background: rgba(0, 120, 212, 0.04);
+        }
+        .layout-row.dragging-source {
+            opacity: 0.55;
+        }
+        [contenteditable="true"],
+        [contenteditable="plaintext-only"] {
+            outline: 1px dashed transparent;
+            border-radius: 2px;
+            transition: outline-color 0.12s ease;
+        }
+        [contenteditable="true"]:hover,
+        [contenteditable="plaintext-only"]:hover {
+            outline-color: #c8c6c4;
+        }
+        [contenteditable="true"]:focus,
+        [contenteditable="plaintext-only"]:focus {
+            outline: 2px solid #0078d4;
+            outline-offset: 0;
+        }
+        .fig-caption-editable {
+            min-height: 1.2em;
+        }
+        .layout-body.text-lines {
+            display: block;
+        }
+        .text-part-unit {
+            margin: 0.15em 0 0.5em;
+        }
+        .text-line-row {
+            margin: 0.08em 0;
+        }
+        .layout-body.text-lines .plain,
+        .layout-body.text-lines .excerpt,
+        .layout-body.text-lines .orphan-note {
+            display: block;
+            width: 100%;
+            white-space: pre-wrap;
+        }
+        .interline-drop {
+            min-height: 6px;
+            margin: 1px 0;
+            border-radius: 4px;
+            transition: min-height 0.12s ease, background 0.12s ease, border-color 0.12s ease;
+            border: 1px dashed transparent;
+        }
+        .interline-drop-active {
+            min-height: 16px;
+            background: rgba(0, 120, 212, 0.12);
+            border-color: rgba(0, 120, 212, 0.55);
+        }
+    </style>
+</head>
+<body>
+    <div class="toolbar">
+        <div class="toolbar-inner">
+            <div class="toolbar-main">
+                <nav class="toolbar-actions" aria-label="Actions">
+                    <div class="toolbar-group" aria-label="Export group">
+                        <span class="toolbar-group-label">Export</span>
+                        <button type="button" class="primary" onclick="exportDocx()">Word</button>
+                        <button type="button" onclick="exportHtml()">HTML</button>
+                        <button type="button" onclick="exportJson()">JSON</button>
+                        <button type="button" onclick="exportMarkdown()">Markdown</button>
+                        <button type="button" onclick="exportPng()">PNG</button>
+                        <button type="button" onclick="window.print()" title="Save as PDF: open More settings and turn off Headers and footers to drop the URL, date, and page numbers.">Print</button>
+                    </div>
+                    <div class="toolbar-group" aria-label="Layout group">
+                        <span class="toolbar-group-label">Layout</span>
+                        <button type="button" id="btnToggleChrome" onclick="toggleLayoutChrome()">Hide Rails</button>
+                        <button type="button" onclick="resetLayoutToAuto()">Reset Layout</button>
+                    </div>
+                    <div class="toolbar-group" aria-label="Navigation group">
+                        <span class="toolbar-group-label">Back</span>
+                        <a class="btn-link" href="/cs-workbench/">Studio</a>
+                    </div>
+                </nav>
+            </div>
+            <p class="toolbar-hint">Drop charts on blue slots between lines. Drag ⋮⋮ to reorder blocks. Click text or captions to edit; paste is plain text. Exports follow what you see.</p>
+        </div>
+    </div>
+    <div id="main">
+        <div id="err" style="display:none;"></div>
+        <div id="content" style="display:none;">
+            <div class="page-margin">
+                <article class="paper" id="documentPaper">
+                    <h1 class="doc-title">Preview</h1>
+                    <p class="doc-note">Full text and figures below. Edits and order are saved in the browser; exports match this view.</p>
+                    <div id="mergedDocument" class="merged-document layout-rows" aria-label="Merged text and charts"></div>
+                </article>
+            </div>
+        </div>
+    </div>
+    <script>
+        const STORAGE_KEY = 'chartLayoutExportPayload_v1';
+        const TEXT_PART_MAX = 500000;
+        const CAPTION_MAX = 200;
+        let payload = null;
+        let chartInstances = {};
+        /** Latest ECharts instance per chartIndex (for export); DOM may use slot keys. */
+        let lastInstByChartIndex = {};
+        let resizeHooked = false;
+        /** Editable reading order; synced to payload.manualLayoutParts in localStorage. */
+        let layoutParts = [];
+        let layoutChromeHidden = false;
+        /** True once user has a non-auto order (including restored manualLayoutParts). */
+        let layoutEditDirty = false;
+
+        function getEffectiveParts() {
+            return (layoutParts && layoutParts.length) ? layoutParts : buildMergedParts();
+        }
+
+        function cloneParts(parts) {
+            return JSON.parse(JSON.stringify(parts || []));
+        }
+
+        function getExportBaseName() {
+            const raw = (payload && payload.uploadedFileName) ? String(payload.uploadedFileName) : '';
+            const noExt = raw.replace(/\.[^/.]+$/, '').trim();
+            const safe = noExt
+                .replace(/[\\/:*?"<>|]/g, '-')
+                .replace(/\s+/g, ' ')
+                .trim();
+            return safe || 'document-with-figures';
+        }
+
+        function markLayoutDirty() {
+            layoutEditDirty = true;
+            savePayloadToStorage();
+        }
+
+        function stripEditableToPlainText(s) {
+            return String(s || '').replace(/\u00a0/g, ' ');
+        }
+
+        function splitPartsIntoGroups(parts) {
+            const groups = [];
+            const len = parts.length;
+            let i = 0;
+            while (i < len) {
+                const p = parts[i];
+                if (p.type === 'chart' || p.type === 'orphan_note') {
+                    groups.push([p]);
+                    i += 1;
+                } else {
+                    const chunk = [];
+                    while (i < len && parts[i].type !== 'chart' && parts[i].type !== 'orphan_note') {
+                        chunk.push(parts[i]);
+                        i += 1;
+                    }
+                    groups.push(chunk);
+                }
+            }
+            return groups;
+        }
+
+        function reorderGroups(fromGi, toGi) {
+            const groups = splitPartsIntoGroups(layoutParts);
+            if (fromGi < 0 || fromGi >= groups.length) return;
+            if (toGi < 0 || toGi >= groups.length) return;
+            if (fromGi === toGi) return;
+            const [block] = groups.splice(fromGi, 1);
+            groups.splice(toGi, 0, block);
+            layoutParts = groups.flat();
+            markLayoutDirty();
+            renderMerged();
+        }
+
+        const CHART_DND_MIME = 'application/x-chart-part-index';
+
+        function cloneChartPart(c) {
+            const o = { type: 'chart', chartIndex: c.chartIndex };
+            if (c.caption) o.caption = c.caption;
+            return o;
+        }
+
+        function adjustIndexAfterChartRemove(removedIndex, targetIndex) {
+            return targetIndex > removedIndex ? targetIndex - 1 : targetIndex;
+        }
+
+        function moveChartToTextSlot(sourceFlatIndex, spec) {
+            const chart = layoutParts[sourceFlatIndex];
+            if (!chart || chart.type !== 'chart') return;
+            const chartPart = cloneChartPart(chart);
+            layoutParts.splice(sourceFlatIndex, 1);
+
+            if (spec.type === 'before') {
+                const pi = adjustIndexAfterChartRemove(sourceFlatIndex, spec.partIndex);
+                layoutParts.splice(pi, 0, chartPart);
+                markLayoutDirty();
+                renderMerged();
+                return;
+            }
+            if (spec.type === 'after') {
+                const pi = adjustIndexAfterChartRemove(sourceFlatIndex, spec.partIndex);
+                layoutParts.splice(pi + 1, 0, chartPart);
+                markLayoutDirty();
+                renderMerged();
+                return;
+            }
+            if (spec.type === 'split') {
+                let pi = adjustIndexAfterChartRemove(sourceFlatIndex, spec.partIndex);
+                const p = layoutParts[pi];
+                if (!p || p.type === 'chart') {
+                    layoutParts.splice(Math.min(pi, layoutParts.length), 0, chartPart);
+                    markLayoutDirty();
+                    renderMerged();
+                    return;
+                }
+                const lines = (p.text || '').split('\n');
+                const k = spec.afterLine;
+                if (k < 0 || k >= lines.length - 1) {
+                    layoutParts.splice(pi + 1, 0, chartPart);
+                    markLayoutDirty();
+                    renderMerged();
+                    return;
+                }
+                const left = lines.slice(0, k + 1).join('\n');
+                const right = lines.slice(k + 1).join('\n');
+                const newBits = [];
+                if (left.length > 0) newBits.push({ ...p, text: left });
+                newBits.push(chartPart);
+                if (right.length > 0) newBits.push({ ...p, text: right });
+                layoutParts.splice(pi, 1, ...newBits);
+                markLayoutDirty();
+                renderMerged();
+            }
+        }
+
+        function wireChartDropTarget(zone) {
+            const hasChartPayload = (dt) => {
+                try {
+                    return Array.from(dt.types || []).indexOf(CHART_DND_MIME) !== -1;
+                } catch (e) {
+                    return false;
+                }
+            };
+            zone.addEventListener('dragenter', (e) => {
+                if (!hasChartPayload(e.dataTransfer)) return;
+                e.preventDefault();
+                zone.classList.add('interline-drop-active');
+            });
+            zone.addEventListener('dragover', (e) => {
+                if (!hasChartPayload(e.dataTransfer)) return;
+                e.preventDefault();
+                e.stopPropagation();
+                e.dataTransfer.dropEffect = 'move';
+                zone.classList.add('interline-drop-active');
+            });
+            zone.addEventListener('dragleave', (e) => {
+                if (!zone.contains(e.relatedTarget)) zone.classList.remove('interline-drop-active');
+            });
+            zone.addEventListener('drop', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                zone.classList.remove('interline-drop-active');
+                const src = parseInt(e.dataTransfer.getData(CHART_DND_MIME), 10);
+                if (!Number.isFinite(src)) return;
+                const kind = zone.dataset.slotKind;
+                const pi = parseInt(zone.dataset.partIndex, 10);
+                if (!Number.isFinite(pi)) return;
+                if (kind === 'before') moveChartToTextSlot(src, { type: 'before', partIndex: pi });
+                else if (kind === 'after') moveChartToTextSlot(src, { type: 'after', partIndex: pi });
+                else if (kind === 'split') {
+                    const al = parseInt(zone.dataset.afterLine, 10);
+                    if (!Number.isFinite(al)) return;
+                    moveChartToTextSlot(src, { type: 'split', partIndex: pi, afterLine: al });
+                }
+            });
+        }
+
+        function syncPartLinesFromUnit(unitEl, partIndex) {
+            const spans = unitEl.querySelectorAll(':scope > .text-line-row > span');
+            const lines = [];
+            spans.forEach(span => {
+                let t = stripEditableToPlainText(span.innerText || span.textContent || '');
+                t = t.replace(/\u200b/g, '');
+                lines.push(t);
+            });
+            const joined = lines.join('\n');
+            if (layoutParts[partIndex] && layoutParts[partIndex].text !== joined) {
+                layoutParts[partIndex].text = joined;
+                markLayoutDirty();
+            }
+        }
+
+        function wireLineEditableInUnit(span, unitEl, partIndex) {
+            try {
+                span.setAttribute('contenteditable', 'plaintext-only');
+            } catch (e0) {
+                span.contentEditable = 'true';
+            }
+            bindPlainPaste(span);
+            span.addEventListener('blur', () => syncPartLinesFromUnit(unitEl, partIndex));
+        }
+
+        function renderTextGroupWithLineDrops(body, slice, rangeStart) {
+            slice.forEach((part, j) => {
+                const partIndex = rangeStart + j;
+                const unit = document.createElement('div');
+                unit.className = 'text-part-unit';
+                unit.dataset.layoutPartIndex = String(partIndex);
+
+                const raw = part.text != null ? String(part.text) : '';
+                const lines = raw.length ? raw.split('\n') : [''];
+
+                const zBefore = document.createElement('div');
+                zBefore.className = 'interline-drop';
+                zBefore.title = 'Insert figure before this block';
+                zBefore.dataset.slotKind = 'before';
+                zBefore.dataset.partIndex = String(partIndex);
+                wireChartDropTarget(zBefore);
+                unit.appendChild(zBefore);
+
+                lines.forEach((lineText, li) => {
+                    const row = document.createElement('div');
+                    row.className = 'text-line-row';
+                    const edit = document.createElement('span');
+                    if (part.type === 'excerpt') {
+                        edit.className = 'excerpt' + (part.orphan ? ' orphan-inline' : '');
+                    } else if (part.type === 'orphan_note') {
+                        edit.className = 'orphan-note';
+                    } else {
+                        edit.className = 'plain';
+                    }
+                    edit.textContent = lineText.length ? lineText : '\u200b';
+                    wireLineEditableInUnit(edit, unit, partIndex);
+                    row.appendChild(edit);
+                    unit.appendChild(row);
+
+                    if (li < lines.length - 1) {
+                        const z = document.createElement('div');
+                        z.className = 'interline-drop';
+                        z.title = 'Insert figure between these lines';
+                        z.dataset.slotKind = 'split';
+                        z.dataset.partIndex = String(partIndex);
+                        z.dataset.afterLine = String(li);
+                        wireChartDropTarget(z);
+                        unit.appendChild(z);
+                    }
+                });
+
+                const zAfter = document.createElement('div');
+                zAfter.className = 'interline-drop';
+                zAfter.title = 'Insert figure after this block';
+                zAfter.dataset.slotKind = 'after';
+                zAfter.dataset.partIndex = String(partIndex);
+                wireChartDropTarget(zAfter);
+                unit.appendChild(zAfter);
+
+                body.appendChild(unit);
+            });
+        }
+
+        function autoCaptionForChartAtPartIndex(partIndex) {
+            let n = 0;
+            for (let i = 0; i < layoutParts.length; i++) {
+                if (layoutParts[i].type === 'chart') {
+                    n += 1;
+                    if (i === partIndex) return `Fig. ${n}`;
+                }
+            }
+            return `Fig. ${n}`;
+        }
+
+        function bindPlainPaste(el) {
+            el.addEventListener('paste', (e) => {
+                e.preventDefault();
+                const plain = (e.clipboardData || window.clipboardData).getData('text/plain') || '';
+                if (document.queryCommandSupported && document.queryCommandSupported('insertText')) {
+                    document.execCommand('insertText', false, plain);
+                } else {
+                    const sel = window.getSelection();
+                    if (!sel || !sel.rangeCount) return;
+                    const r = sel.getRangeAt(0);
+                    r.deleteContents();
+                    r.insertNode(document.createTextNode(plain));
+                    r.collapse(false);
+                    sel.removeAllRanges();
+                    sel.addRange(r);
+                }
+            });
+        }
+
+        function wireTextPartEditable(el, partIndex) {
+            el.dataset.layoutPartIndex = String(partIndex);
+            try {
+                el.setAttribute('contenteditable', 'plaintext-only');
+            } catch (e1) {
+                el.contentEditable = 'true';
+            }
+            bindPlainPaste(el);
+            el.addEventListener('blur', () => {
+                let t = stripEditableToPlainText(el.innerText || el.textContent || '');
+                t = t.replace(/\u200b/g, '');
+                t = t.trim() === '' ? '' : t;
+                if (t.length > TEXT_PART_MAX) t = t.slice(0, TEXT_PART_MAX);
+                if (layoutParts[partIndex] && layoutParts[partIndex].text !== t) {
+                    layoutParts[partIndex].text = t;
+                    markLayoutDirty();
+                }
+            });
+        }
+
+        function sanitizeManualParts(raw) {
+            if (!Array.isArray(raw) || !payload || !payload.charts) return null;
+            const n = payload.charts.length;
+            const out = [];
+            for (const p of raw) {
+                if (!p || typeof p !== 'object') continue;
+                const t = p.type;
+                if (t === 'plain' || t === 'orphan_note') {
+                    out.push({ type: t, text: String(p.text != null ? p.text : '') });
+                } else if (t === 'excerpt') {
+                    out.push({ type: 'excerpt', text: String(p.text != null ? p.text : ''), orphan: !!p.orphan });
+                } else if (t === 'chart') {
+                    const ci = Number(p.chartIndex);
+                    if (!Number.isFinite(ci) || ci < 0 || ci >= n) continue;
+                    const obj = { type: 'chart', chartIndex: ci };
+                    const cap = p.caption != null ? String(p.caption).trim().slice(0, CAPTION_MAX) : '';
+                    if (cap) obj.caption = cap;
+                    out.push(obj);
+                }
+            }
+            return out.length ? out : null;
+        }
+
+        function savePayloadToStorage() {
+            if (!payload) return;
+            if (layoutEditDirty) {
+                payload.manualLayoutParts = cloneParts(layoutParts);
+            } else {
+                delete payload.manualLayoutParts;
+            }
+            try {
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
+            } catch (e) {
+                console.warn('localStorage save failed', e);
+                alert('Could not save layout (storage may be full). You can still export from this page.');
+            }
+        }
+
+        function getGroupRanges() {
+            const ranges = [];
+            const parts = layoutParts;
+            const len = parts.length;
+            let i = 0;
+            while (i < len) {
+                const p = parts[i];
+                if (p.type === 'chart' || p.type === 'orphan_note') {
+                    ranges.push({ start: i, end: i + 1, kind: p.type });
+                    i += 1;
+                } else {
+                    const start = i;
+                    while (i < len && parts[i].type !== 'chart' && parts[i].type !== 'orphan_note') i += 1;
+                    ranges.push({ start, end: i, kind: 'text' });
+                }
+            }
+            return ranges;
+        }
+
+        function groupLabel(kind, partsSlice) {
+            if (kind === 'chart') return 'Chart';
+            if (kind === 'orphan_note') return 'Note';
+            const hasExcerpt = partsSlice.some(p => p.type === 'excerpt');
+            return hasExcerpt ? 'Passage' : 'Body';
+        }
+
+        function moveGroupUp(gi) {
+            const ranges = getGroupRanges();
+            if (gi <= 0 || gi >= ranges.length) return;
+            const b = ranges[gi - 1];
+            const a = ranges[gi];
+            const merged = layoutParts;
+            layoutParts = [
+                ...merged.slice(0, b.start),
+                ...merged.slice(a.start, a.end),
+                ...merged.slice(b.start, b.end),
+                ...merged.slice(a.end),
+            ];
+            markLayoutDirty();
+            renderMerged();
+        }
+
+        function moveGroupDown(gi) {
+            const ranges = getGroupRanges();
+            if (gi < 0 || gi >= ranges.length - 1) return;
+            const b = ranges[gi];
+            const a = ranges[gi + 1];
+            const merged = layoutParts;
+            layoutParts = [
+                ...merged.slice(0, b.start),
+                ...merged.slice(a.start, a.end),
+                ...merged.slice(b.start, b.end),
+                ...merged.slice(a.end),
+            ];
+            markLayoutDirty();
+            renderMerged();
+        }
+
+        function removeGroup(gi) {
+            const ranges = getGroupRanges();
+            if (gi < 0 || gi >= ranges.length) return;
+            const r = ranges[gi];
+            const slice = layoutParts.slice(r.start, r.end);
+            const isText = r.kind === 'text';
+            const textLen = slice.reduce((acc, p) => acc + ((p.text || '').length), 0);
+            if (isText && textLen > 80) {
+                if (!confirm('Remove this long text block from the layout?')) return;
+            } else if (r.kind === 'chart') {
+                if (!confirm('Remove this figure from the layout and exports?')) return;
+            }
+            layoutParts = [...layoutParts.slice(0, r.start), ...layoutParts.slice(r.end)];
+            if (!layoutParts.length) layoutParts = cloneParts(buildMergedParts());
+            markLayoutDirty();
+            renderMerged();
+        }
+
+        function resetLayoutToAuto() {
+            if (!confirm('Reset to auto layout? This clears manual order, text edits, and custom captions.')) return;
+            layoutParts = cloneParts(buildMergedParts());
+            layoutEditDirty = false;
+            savePayloadToStorage();
+            renderMerged();
+        }
+
+        function toggleLayoutChrome() {
+            layoutChromeHidden = !layoutChromeHidden;
+            const root = document.getElementById('mergedDocument');
+            const btn = document.getElementById('btnToggleChrome');
+            if (layoutChromeHidden) {
+                root.classList.add('layout-chrome-hidden');
+                if (btn) btn.textContent = 'Show rails';
+            } else {
+                root.classList.remove('layout-chrome-hidden');
+                if (btn) btn.textContent = 'Hide rails';
+            }
+        }
+
+        function renderPartContent(container, part, figureCounterRef, partIndex) {
+            if (part.type === 'plain') {
+                const span = document.createElement('span');
+                span.className = 'plain';
+                span.textContent = (part.text != null && String(part.text).length) ? part.text : '\u200b';
+                wireTextPartEditable(span, partIndex);
+                container.appendChild(span);
+            } else if (part.type === 'excerpt') {
+                const span = document.createElement('span');
+                span.className = 'excerpt' + (part.orphan ? ' orphan-inline' : '');
+                span.textContent = (part.text != null && String(part.text).length) ? part.text : '\u200b';
+                wireTextPartEditable(span, partIndex);
+                container.appendChild(span);
+            } else if (part.type === 'orphan_note') {
+                const p = document.createElement('span');
+                p.className = 'orphan-note';
+                p.textContent = (part.text != null && String(part.text).length) ? part.text : '\u200b';
+                wireTextPartEditable(p, partIndex);
+                container.appendChild(p);
+            } else if (part.type === 'chart') {
+                figureCounterRef.n += 1;
+                figureCounterRef.slot += 1;
+                const slotKey = `chart_emb_${figureCounterRef.slot}`;
+                const wrap = document.createElement('span');
+                wrap.className = 'figure-wrap';
+                const box = document.createElement('div');
+                box.className = 'inline-chart';
+                box.id = slotKey;
+                const cap = document.createElement('figcaption');
+                cap.className = 'fig-caption-editable';
+                const autoCap = `Fig. ${figureCounterRef.n}`;
+                const custom = part.caption != null && String(part.caption).trim();
+                cap.textContent = custom ? String(part.caption).trim().slice(0, CAPTION_MAX) : autoCap;
+                try {
+                    cap.setAttribute('contenteditable', 'plaintext-only');
+                } catch (e2) {
+                    cap.contentEditable = 'true';
+                }
+                bindPlainPaste(cap);
+                cap.addEventListener('blur', () => {
+                    const auto = autoCaptionForChartAtPartIndex(partIndex);
+                    let t = stripEditableToPlainText(cap.innerText || cap.textContent || '').trim();
+                    const prevCap = layoutParts[partIndex] && layoutParts[partIndex].caption;
+                    if (!t || t === auto) {
+                        if (layoutParts[partIndex] && prevCap !== undefined) {
+                            delete layoutParts[partIndex].caption;
+                            markLayoutDirty();
+                        }
+                        cap.textContent = auto;
+                    } else {
+                        t = t.slice(0, CAPTION_MAX);
+                        if (layoutParts[partIndex] && prevCap !== t) {
+                            layoutParts[partIndex].caption = t;
+                            markLayoutDirty();
+                        }
+                        cap.textContent = t;
+                    }
+                });
+                wrap.appendChild(box);
+                wrap.appendChild(cap);
+                container.appendChild(wrap);
+                const row = payload.charts[part.chartIndex];
+                if (row && row.option && typeof row.option === 'object') {
+                    const inst = echarts.init(box, null, { renderer: 'canvas' });
+                    inst.setOption(row.option, true);
+                    chartInstances[slotKey] = inst;
+                    lastInstByChartIndex[part.chartIndex] = inst;
+                } else {
+                    box.innerHTML = '<p style="color:#888;font-style:italic;">No chart data</p>';
+                }
+            }
+        }
+
+        function showError(msg) {
+            const e = document.getElementById('err');
+            e.style.display = 'block';
+            e.textContent = msg;
+            document.getElementById('content').style.display = 'none';
+        }
+
+        function escapeHtml(s) {
+            return String(s || '')
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;');
+        }
+
+        function clamp(n, lo, hi) {
+            const x = Number(n);
+            if (!Number.isFinite(x)) return lo;
+            return Math.max(lo, Math.min(hi, x));
+        }
+
+        function getDocumentHeaderText() {
+            const raw = payload && payload.uploadedText ? String(payload.uploadedText) : '';
+            const first = raw
+                .split(/\r?\n/)
+                .map((s) => s.trim())
+                .find((s) => s.length > 0) || '';
+            const cleaned = first
+                .replace(/^[#*\-\s]+/, '')
+                .replace(/[*_`]+/g, '')
+                .trim();
+            if (!cleaned) return 'Document';
+            return cleaned.length > 80 ? `${cleaned.slice(0, 80)}...` : cleaned;
+        }
+
+        /**
+         * Build reading-order parts: plain text runs, excerpt spans, then chart(s)
+         * positioned exactly where those excerpts sit in the original document.
+         */
+        function buildMergedParts() {
+            const full = payload.uploadedText || '';
+            const len = full.length;
+
+            const chartsBySeg = new Map();
+            payload.charts.forEach((c, chartIndex) => {
+                const sid = c.segmentId;
+                if (!chartsBySeg.has(sid)) chartsBySeg.set(sid, []);
+                chartsBySeg.get(sid).push(chartIndex);
+            });
+
+            const segs = (payload.extractedSegments || [])
+                .filter(s => chartsBySeg.has(s.id))
+                .sort((a, b) => clamp(a.start, 0, len) - clamp(b.start, 0, len));
+
+            const usedChart = new Set();
+            const parts = [];
+            let cursor = 0;
+
+            segs.forEach(seg => {
+                const st = clamp(seg.start, 0, len);
+                const en = clamp(seg.end, st, len);
+                const indices = chartsBySeg.get(seg.id) || [];
+
+                if (cursor < st) {
+                    parts.push({ type: 'plain', text: full.slice(cursor, st) });
+                }
+                parts.push({ type: 'excerpt', text: full.slice(st, en), orphan: false });
+                indices.forEach(ci => {
+                    parts.push({ type: 'chart', chartIndex: ci });
+                    usedChart.add(ci);
+                });
+                cursor = en;
+            });
+
+            if (cursor < len) {
+                parts.push({ type: 'plain', text: full.slice(cursor) });
+            }
+
+            payload.charts.forEach((c, i) => {
+                if (usedChart.has(i)) return;
+                parts.push({ type: 'orphan_note', text: 'Additional figure (not tied to a located passage in the file):' });
+                const t = (c.segmentText || '').trim();
+                if (t) parts.push({ type: 'excerpt', text: t, orphan: true });
+                parts.push({ type: 'chart', chartIndex: i });
+            });
+
+            return parts;
+        }
+
+        function loadPayload() {
+            const raw = localStorage.getItem(STORAGE_KEY);
+            if (!raw) {
+                showError('No layout data. Open this page from the studio (bulk mode → layout export).');
+                return;
+            }
+            try {
+                payload = JSON.parse(raw);
+            } catch (err) {
+                showError('Invalid data: ' + err.message);
+                return;
+            }
+            if (!payload.charts || !payload.charts.length) {
+                showError('No charts in the saved layout.');
+                return;
+            }
+            document.getElementById('err').style.display = 'none';
+            document.getElementById('content').style.display = 'block';
+            const header = getDocumentHeaderText();
+            const docTitleEl = document.querySelector('.doc-title');
+            if (docTitleEl) docTitleEl.textContent = header;
+            document.title = `${header} · Layout Export`;
+            const manual = sanitizeManualParts(payload.manualLayoutParts);
+            layoutParts = manual || cloneParts(buildMergedParts());
+            layoutEditDirty = !!manual;
+            renderMerged();
+        }
+
+        function disposeCharts() {
+            Object.values(chartInstances).forEach(c => { if (c) try { c.dispose(); } catch (e) {} });
+            chartInstances = {};
+            lastInstByChartIndex = {};
+        }
+
+        function renderMerged() {
+            disposeCharts();
+            const root = document.getElementById('mergedDocument');
+            root.innerHTML = '';
+            root.classList.add('layout-rows');
+            if (layoutChromeHidden) root.classList.add('layout-chrome-hidden');
+            else root.classList.remove('layout-chrome-hidden');
+
+            const parts = layoutParts;
+            const ranges = (() => {
+                const out = [];
+                const len = parts.length;
+                let i = 0;
+                while (i < len) {
+                    const p = parts[i];
+                    if (p.type === 'chart' || p.type === 'orphan_note') {
+                        out.push({ start: i, end: i + 1, kind: p.type });
+                        i += 1;
+                    } else {
+                        const start = i;
+                        while (i < len && parts[i].type !== 'chart' && parts[i].type !== 'orphan_note') i += 1;
+                        out.push({ start, end: i, kind: 'text' });
+                    }
+                }
+                return out;
+            })();
+
+            const figureCounterRef = { n: 0, slot: 0 };
+
+            ranges.forEach((range, gi) => {
+                const slice = parts.slice(range.start, range.end);
+                const row = document.createElement('div');
+                row.className = 'layout-row';
+
+                const rail = document.createElement('div');
+                rail.className = 'layout-rail';
+                const dh = document.createElement('span');
+                dh.className = 'drag-handle';
+                dh.draggable = true;
+                const lineDropMode = range.kind === 'text' || range.kind === 'orphan_note';
+                dh.title = range.kind === 'chart'
+                    ? 'Reorder block, or drop on blue slots in text'
+                    : 'Reorder block';
+                dh.textContent = '⋮⋮';
+                dh.addEventListener('dragstart', (e) => {
+                    e.dataTransfer.setData('text/x-group-index', String(gi));
+                    if (range.kind === 'chart' && slice[0] && slice[0].type === 'chart') {
+                        e.dataTransfer.setData(CHART_DND_MIME, String(range.start));
+                    }
+                    e.dataTransfer.effectAllowed = 'move';
+                    row.classList.add('dragging-source');
+                });
+                dh.addEventListener('dragend', () => {
+                    row.classList.remove('dragging-source');
+                    document.querySelectorAll('.layout-row.drag-over').forEach(el => el.classList.remove('drag-over'));
+                    document.querySelectorAll('.interline-drop-active').forEach(el => el.classList.remove('interline-drop-active'));
+                });
+                rail.appendChild(dh);
+                const lab = document.createElement('span');
+                lab.className = 'rail-label';
+                lab.textContent = groupLabel(range.kind, slice);
+                rail.appendChild(lab);
+                const btnUp = document.createElement('button');
+                btnUp.type = 'button';
+                btnUp.title = 'Move block up';
+                btnUp.textContent = '↑';
+                btnUp.disabled = gi === 0;
+                btnUp.onclick = () => moveGroupUp(gi);
+                const btnDn = document.createElement('button');
+                btnDn.type = 'button';
+                btnDn.title = 'Move block down';
+                btnDn.textContent = '↓';
+                btnDn.disabled = gi >= ranges.length - 1;
+                btnDn.onclick = () => moveGroupDown(gi);
+                const btnRm = document.createElement('button');
+                btnRm.type = 'button';
+                btnRm.className = 'danger';
+                btnRm.title = 'Remove block';
+                btnRm.textContent = '×';
+                btnRm.onclick = () => removeGroup(gi);
+                rail.appendChild(btnUp);
+                rail.appendChild(btnDn);
+                rail.appendChild(btnRm);
+                row.appendChild(rail);
+
+                row.dataset.groupIndex = String(gi);
+                if (!lineDropMode) {
+                    row.addEventListener('dragover', (e) => {
+                        e.preventDefault();
+                        e.dataTransfer.dropEffect = 'move';
+                        row.classList.add('drag-over');
+                    });
+                    row.addEventListener('dragleave', (e) => {
+                        if (!row.contains(e.relatedTarget)) row.classList.remove('drag-over');
+                    });
+                    row.addEventListener('drop', (e) => {
+                        e.preventDefault();
+                        row.classList.remove('drag-over');
+                        const from = parseInt(e.dataTransfer.getData('text/x-group-index'), 10);
+                        const to = gi;
+                        if (!Number.isFinite(from)) return;
+                        reorderGroups(from, to);
+                    });
+                } else {
+                    row.addEventListener('dragover', (e) => {
+                        try {
+                            if (Array.from(e.dataTransfer.types || []).includes(CHART_DND_MIME)) {
+                                e.preventDefault();
+                                e.dataTransfer.dropEffect = 'move';
+                            }
+                        } catch (e2) {}
+                    });
+                }
+
+                const body = document.createElement('div');
+                if (lineDropMode) {
+                    body.className = 'layout-body text-lines';
+                    renderTextGroupWithLineDrops(body, slice, range.start);
+                } else {
+                    body.className = 'layout-body';
+                    slice.forEach((part, j) => {
+                        const partIndex = range.start + j;
+                        renderPartContent(body, part, figureCounterRef, partIndex);
+                    });
+                }
+                row.appendChild(body);
+                root.appendChild(row);
+            });
+
+            if (!resizeHooked) {
+                resizeHooked = true;
+                window.addEventListener('resize', () => {
+                    Object.values(chartInstances).forEach(c => {
+                        if (c) try { c.resize(); } catch (e) {}
+                    });
+                });
+            }
+            setTimeout(() => {
+                Object.values(chartInstances).forEach(c => { if (c) try { c.resize(); } catch (e) {} });
+            }, 100);
+        }
+
+        async function exportDocx() {
+            const mergedParts = getEffectiveParts();
+            const chartImages = {};
+            const seen = new Set();
+            mergedParts.forEach(part => {
+                if (part.type !== 'chart') return;
+                const ci = part.chartIndex;
+                if (seen.has(ci)) return;
+                seen.add(ci);
+                const inst = lastInstByChartIndex[ci];
+                let data = '';
+                if (inst) {
+                    try {
+                        data = inst.getDataURL({ type: 'png', pixelRatio: 2, backgroundColor: '#ffffff' });
+                    } catch (e) {}
+                }
+                chartImages[String(ci)] = data;
+            });
+            try {
+                const res = await fetch('/cs-workbench/layout-board/export-docx/', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ mergedParts, chartImages }),
+                });
+                const ctype = res.headers.get('Content-Type') || '';
+                if (!res.ok || ctype.includes('application/json')) {
+                    let msg = 'Export failed';
+                    try {
+                        const j = await res.json();
+                        if (j && j.error) msg = j.error;
+                    } catch (e2) {
+                        try { msg = await res.text(); } catch (e3) {}
+                    }
+                    alert(msg);
+                    return;
+                }
+                const blob = await res.blob();
+                const a = document.createElement('a');
+                a.href = URL.createObjectURL(blob);
+                a.download = `${getExportBaseName()}.docx`;
+                a.click();
+                URL.revokeObjectURL(a.href);
+            } catch (e) {
+                alert('Word export failed: ' + (e.message || String(e)));
+            }
+        }
+
+        function exportHtml() {
+            const parts = getEffectiveParts();
+            const header = getDocumentHeaderText();
+            const imgMap = new Map();
+            payload.charts.forEach((_, chartIndex) => {
+                const inst = lastInstByChartIndex[chartIndex];
+                let imageDataUrl = '';
+                if (inst) {
+                    try {
+                        imageDataUrl = inst.getDataURL({ type: 'png', pixelRatio: 2, backgroundColor: '#ffffff' });
+                    } catch (e) {}
+                }
+                imgMap.set(chartIndex, { chartIndex, imageDataUrl });
+            });
+            const docFont = "Cambria, Georgia, 'Times New Roman', serif";
+            let html = `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><title>${escapeHtml(header)}</title></head><body style="margin:2.2cm;font-family:${docFont};font-size:11pt;line-height:1.65;color:#1a1a1a;text-align:justify;">`;
+            html += `<h1 style="font-size:18pt;font-weight:600;">${escapeHtml(header)}</h1>`;
+            let figSeq = 0;
+            parts.forEach(part => {
+                if (part.type === 'plain') {
+                    html += `<span style="white-space:pre-wrap;">${escapeHtml(part.text)}</span>`;
+                } else if (part.type === 'excerpt') {
+                    const st = part.orphan ? 'font-style:italic;color:#555;' : '';
+                    html += `<span style="white-space:pre-wrap;${st}">${escapeHtml(part.text)}</span>`;
+                } else if (part.type === 'orphan_note') {
+                    html += `<p style="font-size:10pt;color:#555;font-style:italic;margin:1em 0 0.2em;">${escapeHtml(part.text)}</p>`;
+                } else if (part.type === 'chart') {
+                    figSeq += 1;
+                    const im = imgMap.get(part.chartIndex);
+                    const caption = (part.caption && String(part.caption).trim())
+                        ? String(part.caption).trim()
+                        : `Fig. ${figSeq}`;
+                    if (im && im.imageDataUrl) {
+                        html += `<div style="text-align:center;margin:0.75em 0 1em;"><img src="${im.imageDataUrl}" alt="${escapeHtml(caption)}" style="max-width:16cm;width:100%;height:auto;"/><p style="font-size:9.5pt;font-style:italic;color:#555;margin:0.35em 0 0;">${escapeHtml(caption)}</p></div>`;
+                    } else {
+                        html += `<p style="font-style:italic;color:#888;">Figure not rendered</p>`;
+                    }
+                }
+            });
+            html += '</body></html>';
+            const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            a.download = `${getExportBaseName()}.html`;
+            a.click();
+            URL.revokeObjectURL(a.href);
+        }
+
+        function exportJson() {
+            const header = getDocumentHeaderText();
+            const out = {
+                version: 2,
+                layout: 'inline_in_full_text',
+                exportedAt: new Date().toISOString(),
+                documentHeader: header,
+                uploadedText: payload.uploadedText,
+                mergedParts: getEffectiveParts(),
+                manualLayoutApplied: layoutEditDirty,
+                charts: payload.charts,
+                extractedSegments: payload.extractedSegments || [],
+            };
+            const blob = new Blob([JSON.stringify(out, null, 2)], { type: 'application/json' });
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            a.download = `${getExportBaseName()}.json`;
+            a.click();
+            URL.revokeObjectURL(a.href);
+        }
+
+        function exportMarkdown() {
+            const full = payload.uploadedText || '';
+            const parts = getEffectiveParts();
+            const header = getDocumentHeaderText();
+            const lines = [`# ${header}\n\n`];
+            let mdFig = 0;
+            parts.forEach(part => {
+                if (part.type === 'plain') lines.push(part.text);
+                else if (part.type === 'excerpt') lines.push(part.text);
+                else if (part.type === 'orphan_note') lines.push('\n\n*', part.text, '*\n\n');
+                else if (part.type === 'chart') {
+                    mdFig += 1;
+                    const cap = (part.caption && String(part.caption).trim())
+                        ? String(part.caption).trim()
+                        : `Fig. ${mdFig}`;
+                    lines.push('\n\n*', cap, '*\n\n');
+                    const inst = lastInstByChartIndex[part.chartIndex];
+                    let url = '';
+                    if (inst) try { url = inst.getDataURL({ type: 'png', pixelRatio: 2, backgroundColor: '#fff' }); } catch (e) {}
+                    if (url) lines.push('![](', url, ')\n\n');
+                }
+            });
+            lines.push('\n\n---\n\n## Full source (verbatim)\n\n', full);
+            const blob = new Blob([lines.join('')], { type: 'text/markdown;charset=utf-8' });
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            a.download = `${getExportBaseName()}.md`;
+            a.click();
+            URL.revokeObjectURL(a.href);
+        }
+
+        async function exportPng() {
+            const root = document.getElementById('documentPaper');
+            if (!root || typeof html2canvas === 'undefined') {
+                alert('html2canvas not available.');
+                return;
+            }
+            try {
+                const canvas = await html2canvas(root, {
+                    scale: 2,
+                    useCORS: true,
+                    backgroundColor: '#ffffff',
+                    logging: false,
+                    onclone(clonedDoc) {
+                        clonedDoc.querySelectorAll('.layout-rail').forEach(el => el.remove());
+                        clonedDoc.querySelectorAll('.interline-drop').forEach(el => el.remove());
+                    },
+                });
+                const a = document.createElement('a');
+                a.href = canvas.toDataURL('image/png');
+                a.download = `${getExportBaseName()}.png`;
+                a.click();
+            } catch (e) {
+                alert('PNG export failed: ' + e.message);
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', loadPayload);
+    </script>
+</body>
+</html>
